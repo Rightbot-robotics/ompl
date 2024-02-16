@@ -257,7 +257,9 @@ ompl::base::PlannerStatus ompl::geometric::RRTConnect::solve(const base::Planner
         /* sample random state */
         sampler_->sampleUniform(rstate);
 
+        // OMPL_INFORM("RRT connect grow tree 1 start");
         GrowState gs = growTree(tree, tgi, rmotion);
+        // OMPL_INFORM("RRT connect grow tree 1 finish: grow_state %d", gs);
 
         if (gs != TRAPPED)
         {
@@ -273,12 +275,18 @@ ompl::base::PlannerStatus ompl::geometric::RRTConnect::solve(const base::Planner
             tgi.start = startTree_;
 
             /* if initial progress cannot be done from the otherTree, restore tgi.start */
+            // OMPL_INFORM("RRT connect grow tree 2 start");
             GrowState gsc = growTree(otherTree, tgi, rmotion);
+            // OMPL_INFORM("RRT connect grow tree 2 finish");
             if (gsc == TRAPPED)
                 tgi.start = !tgi.start;
-
-            while (gsc == ADVANCED)
+            
+            // OMPL_INFORM("RRT connect grow tree inside while start");
+            while (gsc == ADVANCED){
                 gsc = growTree(otherTree, tgi, rmotion);
+            }
+            // OMPL_INFORM("RRT connect grow tree inside while finish");
+                
 
             /* update distance between trees */
             const double newDist = tree->getDistanceFunction()(addedMotion, otherTree->nearest(addedMotion));
@@ -350,6 +358,8 @@ ompl::base::PlannerStatus ompl::geometric::RRTConnect::solve(const base::Planner
             }
         }
     }
+
+    OMPL_INFORM("RRT connect while exit");
 
     si_->freeState(tgi.xstate);
     si_->freeState(rstate);

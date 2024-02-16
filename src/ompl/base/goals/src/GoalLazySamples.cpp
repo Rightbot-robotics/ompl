@@ -134,7 +134,7 @@ void ompl::base::GoalLazySamples::goalSamplingThread()
         terminateSamplingThread_ = true;
     }
 
-    OMPL_DEBUG("Stopped goal sampling thread after %u sampling attempts", samplingAttempts_ - prevsa);
+    OMPL_INFORM("Stopped goal sampling thread after %u sampling attempts", samplingAttempts_ - prevsa);
 }
 
 bool ompl::base::GoalLazySamples::isSampling() const

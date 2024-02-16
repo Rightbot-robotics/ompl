@@ -86,7 +86,7 @@ ompl::geometric::AnytimePathShortening::AnytimePathShortening(const ompl::base::
     Planner::declareParam<unsigned int>("max_hybrid_paths", this, &AnytimePathShortening::setMaxHybridizationPath,
                                         &AnytimePathShortening::maxHybridizationPaths, "0:1:50");
     Planner::declareParam<unsigned int>("num_planners", this, &AnytimePathShortening::setDefaultNumPlanners,
-                                        &AnytimePathShortening::getDefaultNumPlanners, "0:64");
+                                         &AnytimePathShortening::getDefaultNumPlanners, "0:64");
     Planner::declareParam<std::string>("planners", this, &AnytimePathShortening::setPlanners,
                                        &AnytimePathShortening::getPlanners);
 
@@ -148,11 +148,12 @@ ompl::geometric::AnytimePathShortening::solve(const ompl::base::PlannerTerminati
 
     // Disable output from the motion planners, except for errors
     msg::LogLevel currentLogLevel = msg::getLogLevel();
-    msg::setLogLevel(std::max(msg::LOG_ERROR, currentLogLevel));
+    // msg::setLogLevel(std::max(msg::LOG_ERROR, currentLogLevel));
 
     // Clear any previous planning data for the set of planners
     clear();
     // Spawn a thread for each planner.  This will shortcut the best path after solving.
+    OMPL_INFORM("solving the planning problem with APS on multiple threads");
     for (auto &planner : planners_)
         threads.emplace_back([this, planner, &ptc] { return threadSolve(planner.get(), ptc); });
 
@@ -171,8 +172,10 @@ ompl::geometric::AnytimePathShortening::solve(const ompl::base::PlannerTerminati
 
         // Hybridize the set of paths computed. Add the new hybrid path to the mix.
         unsigned int solCount = pdef_->getSolutionCount();
+        
         if (hybridize_ && !ptc && solCount > 1)
         {
+            OMPL_DEBUG("Hybridization -> APS solution count: %d maxHybridPaths : %d", solCount, maxHybridPaths_);
             const std::vector<base::PlannerSolution> &paths = pdef_->getSolutions();
             std::size_t numPaths = std::min(solCount, maxHybridPaths_);
             geometric::PathGeometric *lastPath = static_cast<PathGeometric *>(paths[numPaths - 1].path_.get());
@@ -182,16 +185,21 @@ ompl::geometric::AnytimePathShortening::solve(const ompl::base::PlannerTerminati
                 for (size_t j = 0; j < numPaths && !ptc; ++j)
                     phybrid.recordPath(std::static_pointer_cast<PathGeometric>(paths[j].path_), false);
 
+                time::point start_hybrid_time = time::now();
                 phybrid.computeHybridPath();
                 sln = phybrid.getHybridPath().get();
                 prevLastPath = lastPath;
+                double hybridization_time = time::seconds(time::now() - start_hybrid_time);
+                OMPL_INFORM("path hybridization took %f seconds", hybridization_time);
             }
             else
                 sln = static_cast<PathGeometric *>(pdef_->getSolutionPath().get());
             prevSolCount = solCount;
         }
-        else if (solCount > 0)
+        else if (solCount > 0) {
+            OMPL_DEBUG("no hybridization -> APS solution count: %d maxHybridPaths : %d", solCount, maxHybridPaths_);
             sln = static_cast<PathGeometric *>(pdef_->getSolutionPath().get());
+        }
 
         if (sln)
         {
@@ -206,8 +214,13 @@ ompl::geometric::AnytimePathShortening::solve(const ompl::base::PlannerTerminati
             phybrid.clear();
     }
 
+    OMPL_INFORM("started waiting for APS threads to join");
+
+    time::point start_thread_wait_time = time::now();
     for (auto &thread : threads)
         thread.join();
+    double thread_wait_duration = time::seconds(time::now() - start_thread_wait_time);
+    OMPL_INFORM("threads joining wait took %f seconds", thread_wait_duration);
 
     msg::setLogLevel(currentLogLevel);
     return pdef_->getSolutionCount() > 0 ? base::PlannerStatus::EXACT_SOLUTION : base::PlannerStatus::UNKNOWN;

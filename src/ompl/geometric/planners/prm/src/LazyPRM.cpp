@@ -182,11 +182,15 @@ void ompl::geometric::LazyPRM::setup()
     // in the state space.
     if (pdef_)
     {
-        if (pdef_->hasOptimizationObjective())
+        if (pdef_->hasOptimizationObjective()) {
             opt_ = pdef_->getOptimizationObjective();
+            OMPL_INFORM("OPT objective: %s", opt_->getDescription().c_str());
+        }
+            
         else
         {
             opt_ = std::make_shared<base::PathLengthOptimizationObjective>(si_);
+            
             if (!starStrategy_)
                 opt_->setCostThreshold(opt_->infiniteCost());
         }
@@ -196,6 +200,7 @@ void ompl::geometric::LazyPRM::setup()
         OMPL_INFORM("%s: problem definition is not set, deferring setup completion...", getName().c_str());
         setup_ = false;
     }
+    
 
     sampler_ = si_->allocStateSampler();
 }
@@ -403,12 +408,14 @@ ompl::base::PlannerStatus ompl::geometric::LazyPRM::solve(const base::PlannerTer
                     fullyOptimized = true;
                     bestSolution = solution;
                     bestCost_ = c;
+                    OMPL_INFORM("Found solution which satiesfies criteria cost: %f", c.value());
                     break;
                 }
                 if (opt_->isCostBetterThan(c, bestCost_))
                 {
                     bestSolution = solution;
                     bestCost_ = c;
+                    OMPL_INFORM("Found solution with cost : %f. Assigning it as current best", c.value());
                 }
             }
         }
@@ -423,6 +430,7 @@ ompl::base::PlannerStatus ompl::geometric::LazyPRM::solve(const base::PlannerTer
         // if the solution was optimized, we mark it as such
         psol.setOptimized(opt_, bestCost_, fullyOptimized);
         pdef_->addSolutionPath(psol);
+        OMPL_INFORM("Found best solution with cost %f, cost threshold: %f ", bestCost_.value(),opt_->getCostThreshold());
     }
 
     OMPL_INFORM("%s: Created %u states", getName().c_str(), boost::num_vertices(g_) - nrStartStates);

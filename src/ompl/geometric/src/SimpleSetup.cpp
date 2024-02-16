@@ -192,7 +192,7 @@ void ompl::geometric::SimpleSetup::simplifySolution(double duration)
 }
 
 const std::string ompl::geometric::SimpleSetup::getSolutionPlannerName() const
-{
+{ 
     if (pdef_)
     {
         const ompl::base::PathPtr path;              // convert to a generic path ptr
